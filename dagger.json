@@ -1,0 +1,6 @@
+{
+  "name": "hf-gguf-to-ollama",
+  "sdk": "typescript",
+  "source": "dagger",
+  "engineVersion": "v0.10.2"
+}
