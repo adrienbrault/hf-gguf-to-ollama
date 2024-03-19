@@ -6,6 +6,7 @@ import {
   File,
   field,
 } from "@dagger.io/dagger";
+import { PromisePool } from '@supercharge/promise-pool'
 var Table = require("cli-table3");
 
 @object()
@@ -135,15 +136,18 @@ class HfGgufToOllama {
    * @param ollamaDir The directory containing the ollama ssh keys, eg ~/.ollama
    */
   @func()
-  async pushAll(url: string, to: string, ollamaKey: File, ollamaKeyPub: File): Promise<string> {
+  async pushAll(url: string, to: string, ollamaKey: File, ollamaKeyPub: File, concurrency: number = 2): Promise<string> {
     const repositoryInfo = await this.repositoryInfo(url);
-    const pushes = repositoryInfo.ggufFiles.map((ggufFile) => {
-      return this.push(url, ggufFile.quant, to, ollamaKey, ollamaKeyPub);
-    });
+    
+    const { results, errors } = await PromisePool
+      .withConcurrency(concurrency)
+      .for(repositoryInfo.ggufFiles)
+      .process(async (ggufFile, index, pool) => {
+        return this.push(url, ggufFile.quant, to, ollamaKey, ollamaKeyPub);
+      })
+    ;
 
-    return Promise.all(pushes).then((results) => {
-      return results.join("\n");
-    });
+    return results.join("\n");
   }
 
   @func()
