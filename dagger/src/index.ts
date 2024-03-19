@@ -4,6 +4,7 @@ import {
   object,
   func,
   File,
+  Secret,
   field,
 } from "@dagger.io/dagger";
 import { PromisePool } from '@supercharge/promise-pool'
@@ -87,21 +88,24 @@ class HfGgufToOllama {
    * @param url The huggingface repository to download from, eg `adrienbrault/top-model`
    * @param quant The quant to download, eg `Q4_0`
    * @param to The ollama repository to push to, eg `adrienbrault/top-model`
-   * @param ollamaKey Use ~/.ollama/id_ed25519
+   * @param ollamaKey Use file:$HOME/.ollama/id_ed25519
    * @param ollamaKeyPub Use ~/.ollama/id_ed25519.pub
    */
   @func()
-  async push(url: string, quant: string, to: string, ollamaKey: File, ollamaKeyPub: File): Promise<string> {
+  async push(url: string, quant: string, to: string, ollamaKey: Secret, ollamaKeyPub: File): Promise<string> {
     const [gguf, modelfile] = await Promise.all([
       this.download(url, quant),
       this.modelfile(url, quant)
     ]);
     const ggufFileName = await gguf.name();
+    const ollamaKeyContents = await ollamaKey.plaintext()
 
     const ollama = () => 
       dag.container()
         .from("ollama/ollama")
-        .withMountedFile(`/root/.ollama/id_ed25519`, ollamaKey)
+        .withNewFile(`/root/.ollama/id_ed25519`, {
+          contents: ollamaKeyContents
+        })
         .withMountedFile(`/root/.ollama/id_ed25519.pub`, ollamaKeyPub)
         .withNewFile("/tmp/Modelfile", {
           contents: modelfile,
@@ -135,11 +139,11 @@ class HfGgufToOllama {
   /**
    * @param url The huggingface repository to download from, eg `adrienbrault/top-model`
    * @param to The ollama repository to push to, eg `adrienbrault/top-model`
-   * @param ollamaKey Use ~/.ollama/id_ed25519
+   * @param ollamaKey Use file:$HOME/.ollama/id_ed25519
    * @param ollamaKeyPub Use ~/.ollama/id_ed25519.pub
    */
   @func()
-  async pushAll(url: string, to: string, ollamaKey: File, ollamaKeyPub: File, concurrency: number = 2): Promise<string> {
+  async pushAll(url: string, to: string, ollamaKey: Secret, ollamaKeyPub: File, concurrency: number = 2): Promise<string> {
     const repositoryInfo = await this.repositoryInfo(url);
 
     const { results, errors } = await PromisePool

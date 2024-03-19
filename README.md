@@ -54,7 +54,7 @@ Push all quantizations:
 ```bash
 dagger -m github.com/adrienbrault/hf-gguf-to-ollama \
     call push-all \
-    --ollama-key ~/.ollama/id_ed25519 \
+    --ollama-key file:$HOME/.ollama/id_ed25519 \
     --ollama-key-pub ~/.ollama/id_ed25519.pub \
     --url afrideva/Nous-Capybara-3B-V1.9-GGUF \
     --to adrienbrault/nous-capybara-3b
@@ -65,7 +65,7 @@ Push a single quantization:
 ```bash
 dagger -m github.com/adrienbrault/hf-gguf-to-ollama \
     call push \
-    --ollama-key ~/.ollama/id_ed25519 \
+    --ollama-key file:$HOME/.ollama/id_ed25519 \
     --ollama-key-pub ~/.ollama/id_ed25519.pub \
     --url afrideva/Nous-Capybara-3B-V1.9-GGUF \
     --quant Q8_0 \
