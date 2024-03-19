@@ -87,7 +87,8 @@ class HfGgufToOllama {
    * @param url The huggingface repository to download from, eg `adrienbrault/top-model`
    * @param quant The quant to download, eg `Q4_0`
    * @param to The ollama repository to push to, eg `adrienbrault/top-model`
-   * @param ollamaDir The directory containing the ollama ssh keys, eg ~/.ollama
+   * @param ollamaKey Use ~/.ollama/id_ed25519
+   * @param ollamaKeyPub Use ~/.ollama/id_ed25519.pub
    */
   @func()
   async push(url: string, quant: string, to: string, ollamaKey: File, ollamaKeyPub: File): Promise<string> {
@@ -134,12 +135,13 @@ class HfGgufToOllama {
   /**
    * @param url The huggingface repository to download from, eg `adrienbrault/top-model`
    * @param to The ollama repository to push to, eg `adrienbrault/top-model`
-   * @param ollamaDir The directory containing the ollama ssh keys, eg ~/.ollama
+   * @param ollamaKey Use ~/.ollama/id_ed25519
+   * @param ollamaKeyPub Use ~/.ollama/id_ed25519.pub
    */
   @func()
   async pushAll(url: string, to: string, ollamaKey: File, ollamaKeyPub: File, concurrency: number = 2): Promise<string> {
     const repositoryInfo = await this.repositoryInfo(url);
-    
+
     const { results, errors } = await PromisePool
       .withConcurrency(concurrency)
       .for(repositoryInfo.ggufFiles)
