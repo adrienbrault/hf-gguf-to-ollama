@@ -16,9 +16,11 @@ class HfGgufToOllama {
   hfCli(): Container {
     return dag
       .container()
-      .from("pkgxdev/pkgx")
-      .withExec(["pkgx", "install", "huggingface-cli"])
-      .withExec(["huggingface-cli", "--help"]);
+      .from("python:3.9")
+      .withExec(["pip", "install", "huggingface_hub[hf_transfer]"])
+      .withExec(["huggingface-cli", "--help"])
+      .withEnvVariable("HF_HUB_ENABLE_HF_TRANSFER", "1")
+    ;
   }
 
   @func()
