@@ -117,7 +117,6 @@ class HfGgufToOllama {
           .asService()
       )
       .withEnvVariable("OLLAMA_HOST", "http://ollama:11434")
-      .withEnvVariable("FOO", "BAR1")
       .withExec([
         "create",
         `${to}:${quant}`,
@@ -144,7 +143,7 @@ class HfGgufToOllama {
     const { results, errors } = await PromisePool
       .withConcurrency(concurrency)
       .for(repositoryInfo.ggufFiles)
-      .process(async (ggufFile, index, pool) => {
+      .process(async (ggufFile) => {
         return this.push(url, ggufFile.quant, to, ollamaKey, ollamaKeyPub);
       })
     ;
@@ -162,9 +161,9 @@ class HfGgufToOllama {
     }
 
     let chatTemplate = undefined
-    if (/<|im_start|>/.test(repositoryInfo.readme)) {
+    if (repositoryInfo.readme.includes("<|im_start|>")) {
       chatTemplate = "chatml";
-    } else if (/\[\/INST\]/.test(repositoryInfo.readme)) {
+    } else if (repositoryInfo.readme.includes("[/INST]")) {
       chatTemplate = "mistral";
     }
 
