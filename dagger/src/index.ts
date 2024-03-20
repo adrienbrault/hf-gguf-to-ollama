@@ -6,6 +6,7 @@ import {
   File,
   Secret,
   field,
+  Service,
 } from "@dagger.io/dagger";
 import { PromisePool } from '@supercharge/promise-pool'
 var Table = require("cli-table3");
@@ -13,6 +14,79 @@ var Table = require("cli-table3");
 @object()
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 class HfGgufToOllama {
+  url?: string;
+  quant?: string;
+  to?: string;
+  
+  @field()
+  ollamaKey?: Secret;
+  
+  @field()
+  ollamaKeyPub?: File;
+  
+  @field()
+  ollamaHost?: Service;
+
+  /**
+   * @param url The huggingface repository to download from, eg `adrienbrault/top-model`
+   * @param quant The quant to download, eg `Q4_0`
+   * @param to The ollama repository to push to, eg `adrienbrault/top-model`
+   * @param ollamaKey eg `file:$HOME/.ollama/id_ed25519`
+   * @param ollamaKeyPub eg `~/.ollama/id_ed25519.pub`
+   * @param ollamaHost To connect to the local ollama service, use `tcp://localhost:11434`
+   */
+  constructor(
+    url?: string,
+    quant?: string,
+    to?: string,
+    ollamaKey?: Secret,
+    ollamaKeyPub?: File,
+    ollamaHost?: Service,
+  ) {
+    if (url) {
+      this.url = url;
+    }
+    if (quant) {
+      this.quant = quant;
+    }
+    if (to) {
+      this.to = to;
+    }
+    if (ollamaKey) {
+      this.ollamaKey = ollamaKey;
+    }
+    if (ollamaKeyPub) {
+      this.ollamaKeyPub = ollamaKeyPub;
+    }
+    if (ollamaHost) {
+      this.ollamaHost = ollamaHost;
+    }
+  }
+
+  urlRequired(): string {
+    if (!this.url) {
+      throw new Error("--url is required");
+    }
+
+    return this.url;
+  }
+
+  quantRequired(): string {
+    if (!this.quant) {
+      throw new Error("--quant is required");
+    }
+
+    return this.quant;
+  }
+
+  toRequired(): string {
+    if (!this.to) {
+      throw new Error("--to is required");
+    }
+
+    return this.to;
+  }
+
   @func()
   hfCli(): Container {
     return dag
@@ -25,8 +99,8 @@ class HfGgufToOllama {
   }
 
   @func()
-  async list(url: string): Promise<string> {
-    const repositoryInfo = await this.repositoryInfo(url);
+  async list(): Promise<string> {
+    const repositoryInfo = await this.repositoryInfo();
 
     const table = new Table({
       head: ["Quant", "Filename"],
@@ -40,7 +114,8 @@ class HfGgufToOllama {
   }
 
   @func()
-  async repositoryInfo(url: string): Promise<RepositoryInfo> {
+  async repositoryInfo(): Promise<RepositoryInfo> {
+    let url = this.urlRequired()
     if (!url.includes("://")) {
       url = `https://huggingface.co/${url}`;
     }
@@ -51,7 +126,7 @@ class HfGgufToOllama {
     const ggufFiles: GgufFile[] = [];
 
     for (const file of files) {
-      const match = file.match(/(?<quant>i?q[A-Z0-9_]+)\.gguf$/i);
+      const match = file.match(/[.-](?<quant>i?q[A-Z0-9_]+)(\..+)?\.gguf$/i);
       if (match) {
         ggufFiles.push(new GgufFile(match.groups['quant'], file));
       }
@@ -64,13 +139,9 @@ class HfGgufToOllama {
   }
 
   @func()
-  async download(url: string, quant: string): Promise<File> {
-    const repositoryInfo = await this.repositoryInfo(url);
-    const ggufFile = repositoryInfo.find(quant);
-
-    if (!ggufFile) {
-      throw new Error(`Quant ${quant} not found in repository`);
-    }
+  async download(quant?: string): Promise<File> {
+    const repositoryInfo = await this.repositoryInfo();
+    const ggufFile = repositoryInfo.find(quant || this.quantRequired());
 
     return this.hfCli()
       .withExec([
@@ -84,87 +155,108 @@ class HfGgufToOllama {
       .file(`/tmp/${ggufFile.filename}`);
   }
 
-  /**
-   * @param url The huggingface repository to download from, eg `adrienbrault/top-model`
-   * @param quant The quant to download, eg `Q4_0`
-   * @param to The ollama repository to push to, eg `adrienbrault/top-model`
-   * @param ollamaKey Use file:$HOME/.ollama/id_ed25519
-   * @param ollamaKeyPub Use ~/.ollama/id_ed25519.pub
-   */
   @func()
-  async push(url: string, quant: string, to: string, ollamaKey: Secret, ollamaKeyPub: File): Promise<string> {
+  async create(quant?: string): Promise<Container> {
+    quant = quant || this.quantRequired();
+
     const [gguf, modelfile] = await Promise.all([
-      this.download(url, quant),
-      this.modelfile(url, quant)
+      this.download(quant),
+      this.modelfile(quant)
     ]);
     const ggufFileName = await gguf.name();
-    const ollamaKeyContents = await ollamaKey.plaintext()
-
-    const ollama = () => 
-      dag.container()
-        .from("ollama/ollama")
-        .withNewFile(`/root/.ollama/id_ed25519`, {
-          contents: ollamaKeyContents
-        })
-        .withMountedFile(`/root/.ollama/id_ed25519.pub`, ollamaKeyPub)
-        .withNewFile("/tmp/Modelfile", {
-          contents: modelfile,
-        })
-        .withMountedFile(`/tmp/${ggufFileName}`, gguf)
-        .withWorkdir("/tmp")
-    ;
     
-    return ollama()
-      .withServiceBinding(
-        "ollama",
-        ollama()
-          .withExposedPort(11434)
-          .asService()
-      )
-      .withEnvVariable("OLLAMA_HOST", "http://ollama:11434")
+    let ollamaContainer = dag.container().from("ollama/ollama");
+    if (this.ollamaHost) {
+      ollamaContainer = ollamaContainer
+        .withServiceBinding("ollama", this.ollamaHost)
+        .withEnvVariable("OLLAMA_HOST", `http://${await this.ollamaHost.endpoint()}`)
+      ;
+    } else {
+      if (!this.ollamaKey || !this.ollamaKeyPub) {
+        throw new Error("You must provide either --ollama-host or both --ollama-key and --ollama-key-pub");
+      }
+      ollamaContainer = ollamaContainer
+        .withNewFile(`/root/.ollama/id_ed25519`, {
+          contents: await this.ollamaKey.plaintext()
+        })
+        .withMountedFile(`/root/.ollama/id_ed25519.pub`, this.ollamaKeyPub)
+
+      ollamaContainer = ollamaContainer
+        .withServiceBinding(
+          "ollama",
+          ollamaContainer
+            .withExposedPort(11434)
+            .asService()
+        )
+        .withEnvVariable("OLLAMA_HOST", "http://ollama:11434")
+    }
+
+    return ollamaContainer
+      .withNewFile("/tmp/Modelfile", {
+        contents: modelfile,
+      })
+      .withMountedFile(`/tmp/${ggufFileName}`, gguf)
+      .withWorkdir("/tmp")
       .withExec([
         "create",
-        `${to}:${quant}`,
+        `${this.to || this.urlRequired()}:${quant}`,
         "-f",
         "/tmp/Modelfile",
       ])
+    ;
+  }
+
+  @func()
+  async createAll(concurrency: number = 2): Promise<Container[]> {
+    const repositoryInfo = await this.repositoryInfo();
+
+    return runPoolGracefully(
+      PromisePool
+        .withConcurrency(concurrency)
+        .for(repositoryInfo.ggufFiles),
+      ggufFile => this
+        .create(ggufFile.quant)
+        .then(result => result.sync()) // Make sure pool detects errors
+    );
+  }
+
+  @func()
+  async push(quant?: string): Promise<string> {
+    quant = quant || this.quantRequired();
+    const to = this.toRequired();
+    let ollamaContainer = await this.create(quant)
+    
+    const path = `${to}:${quant}`
+
+    return ollamaContainer
       .withExec([
         "push",
-        `${to}:${quant}`
+        path
       ])
-      .stdout()
+      .sync()
+      .then(() => `Pushed ${path} - https://ollama.com/${path}`)
     ;
   }
 
-  /**
-   * @param url The huggingface repository to download from, eg `adrienbrault/top-model`
-   * @param to The ollama repository to push to, eg `adrienbrault/top-model`
-   * @param ollamaKey Use file:$HOME/.ollama/id_ed25519
-   * @param ollamaKeyPub Use ~/.ollama/id_ed25519.pub
-   */
   @func()
-  async pushAll(url: string, to: string, ollamaKey: Secret, ollamaKeyPub: File, concurrency: number = 2): Promise<string> {
-    const repositoryInfo = await this.repositoryInfo(url);
+  async pushAll(concurrency: number = 2): Promise<string[]> {
+    const repositoryInfo = await this.repositoryInfo();
 
-    const { results, errors } = await PromisePool
-      .withConcurrency(concurrency)
-      .for(repositoryInfo.ggufFiles)
-      .process(async (ggufFile) => {
-        return this.push(url, ggufFile.quant, to, ollamaKey, ollamaKeyPub);
-      })
-    ;
-
-    return results.join("\n");
+    return runPoolGracefully(
+      PromisePool
+        .withConcurrency(concurrency)
+        .for(repositoryInfo.ggufFiles),
+      ggufFile => this
+        .push(ggufFile.quant)
+    );
   }
 
   @func()
-  async modelfile(url: string, quant: string): Promise<string> {
-    const repositoryInfo = await this.repositoryInfo(url);
+  async modelfile(quant?: string): Promise<string> {
+    quant = quant || this.quantRequired();
+
+    const repositoryInfo = await this.repositoryInfo();
     const ggufFile = repositoryInfo.find(quant);
-
-    if (!ggufFile) {
-      throw new Error(`Quant ${quant} not found in repository`);
-    }
 
     let chatTemplate = undefined
     if (repositoryInfo.readme.includes("<|im_start|>")) {
@@ -215,8 +307,17 @@ class RepositoryInfo {
     this.readme = readme;
   }
 
-  find(quant: string): GgufFile | undefined {
-    return this.ggufFiles.find((ggufFile) => ggufFile.quant === quant.toUpperCase());
+  find(quant: string): GgufFile {
+    const ggufFile = this.ggufFiles.find((ggufFile) => ggufFile.quant === quant.toUpperCase());
+    
+    if (!ggufFile) {
+      throw new Error([
+        `Quant ${quant} not found in repository.`,
+        `Available quants: ${this.ggufFiles.map(ggufFile => ggufFile.quant).join(", ")}`
+      ].join(' '));
+    }
+
+    return ggufFile;
   }
 }
 
@@ -281,4 +382,22 @@ function ggufTools(): Container {
       .withExec(["make", "all"])
       .withEntrypoint(["./gguf-tools"])
     ;
+}
+
+async function runPoolGracefully(pool: PromisePool, processor): Promise<any[]> {
+  let errors = []
+
+  const { results } = await pool
+    .process(element => processor(element)
+      .catch(error => {
+        errors.push(error)
+      })
+    )
+  ;
+
+  if (errors.length > 0) {
+    throw new Error(`Errors: ${errors.join(", ")}`);
+  }
+
+  return results;
 }
