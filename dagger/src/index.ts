@@ -9,6 +9,7 @@ import {
   Service,
 } from "@dagger.io/dagger";
 import { PromisePool } from '@supercharge/promise-pool'
+import { modelfile } from "./modelfile";
 var Table = require("cli-table3");
 
 @object()
@@ -319,55 +320,6 @@ class RepositoryInfo {
 
     return ggufFile;
   }
-}
-
-type ModelfileConfig = {
-  from: string;
-  license?: string;
-  chatTemplate?: string | "chatml" | "mistral";
-  system?: string;
-  parameters?: Record<string, string | number | boolean | (string | number | boolean)[]>;
-};
-function modelfile(config: ModelfileConfig): string {
-  let parts = [`FROM ${config.from}`];
-  let parameters = {
-    ...config.parameters,
-  };
-
-  if (config.system) {
-    parts.push(`SYSTEM """${config.system}"""`);
-  }
-  if (config.chatTemplate) {
-    let chatTemplate = config.chatTemplate;
-    if (chatTemplate === "chatml") {
-      chatTemplate = [
-        `{{ if .System }}<|im_start|>system`,
-        `{{ .System }}<|im_end|>`,
-        `{{ end }}{{ if .Prompt }}<|im_start|>user`,
-        `{{ .Prompt }}<|im_end|>`,
-        `{{ end }}<|im_start|>assistant`,
-      ].join("\n")
-      ;
-      parameters["stop"] = ["<|im_start|>", "<|im_end|>"];
-    }
-    if (chatTemplate === "mistral") {
-      chatTemplate = `[INST] {{ .System }} {{ .Prompt }} [/INST]`;
-      parameters["stop"] = ["[INST]", "[/INST]"];
-    }
-
-    parts.push(`TEMPLATE """${chatTemplate}"""`);
-  }
-  if (config.license) {
-    parts.push(`LICENSE """${config.license}"""`);
-  }
-  
-  for (const [key, value] of Object.entries(parameters)) {
-    parts.push(
-      (Array.isArray(value) ? value : []).map((v) => `PARAMETER ${key} ${v}`).join("\n")
-    );
-  }
-
-  return parts.join("\n\n");
 }
 
 function ggufTools(): Container {

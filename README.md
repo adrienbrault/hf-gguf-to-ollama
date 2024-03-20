@@ -129,3 +129,9 @@ If you want to use an ephemeral ollama daemon instead, replace `--ollama-host tc
 ```bash
 --ollama-key file:$HOME/.ollama/id_ed25519 --ollama-key-pub ~/.ollama/id_ed25519.pub
 ```
+
+To run tests locally:
+```console
+$ bun test
+$ bun test --watch
+```
