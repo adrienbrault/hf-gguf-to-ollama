@@ -7,5 +7,8 @@
   },
   "devDependencies": {
     "@dagger.io/dagger": "file:sdk"
+  },
+  "scripts": {
+    "postinstall": "cp ./test/sdk.index-fixed.ts ./sdk/index.ts"
   }
 }

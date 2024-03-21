@@ -130,8 +130,15 @@ If you want to use an ephemeral ollama daemon instead, replace `--ollama-host tc
 --ollama-key file:$HOME/.ollama/id_ed25519 --ollama-key-pub ~/.ollama/id_ed25519.pub
 ```
 
-To run tests locally:
+To run tests:
 ```console
-$ bun test
-$ bun test --watch
+$ dagger develop
+$ dagger call test
+
+bun test v1.0.33 (9e91e137)
+
+test/index.test.ts:
+(pass) HfGgufToOllama > list [8.09ms]
+(pass) HfGgufToOllama > repositoryInfo requires url [0.29ms]
+...
 ```

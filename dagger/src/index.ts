@@ -14,7 +14,7 @@ var Table = require("cli-table3");
 
 @object()
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-class HfGgufToOllama {
+export class HfGgufToOllama {
   url?: string;
   quant?: string;
   to?: string;
@@ -120,7 +120,7 @@ class HfGgufToOllama {
     if (!url.includes("://")) {
       url = `https://huggingface.co/${url}`;
     }
-    const directory = await dag.git(url).branch("").tree();
+    const directory = dag.git(url).branch("").tree();
 
     const files = await directory.entries();
 
@@ -270,6 +270,22 @@ class HfGgufToOllama {
       from: `/tmp/${ggufFile.filename}`,
       chatTemplate,
     });
+  }
+
+  @func()
+  async test(): Promise<string> {
+    return dag
+      .container()
+      .from("oven/bun:1")
+      .withMountedDirectory(
+        "/app", 
+        dag.currentModule().source()
+      )
+      .withWorkdir("/app")
+      .withExec(["bun", "install"])
+      .withExec(["bun", "test"])
+      .stderr()
+    ;
   }
 }
 
