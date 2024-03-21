@@ -74,4 +74,31 @@ describe("HfGgufToOllama", () => {
             readme: "This is a test README content"
         });
     });
+
+    test("modelfile", async () => {
+        const instance = new HfGgufToOllama("adrienbrault/top-model");
+
+        instance.repositoryInfo = mock(() => Promise.resolve({
+            ggufFiles: [
+                { quant: "Q4_0", filename: "model.Q4_0.gguf" },
+                { quant: "Q4_K_M", filename: "model.Q4_K_M.gguf" }
+            ],
+            readme: `
+---
+license: mit
+---
+README content`,
+            find: (quant: string) => {
+                if (quant === "Q4_0") {
+                    return { quant: "Q4_0", filename: "model.Q4_0.gguf" };
+                }
+                throw new Error("Not found");
+            }
+        }));
+
+        const expectedOutput = `FROM /tmp/model.Q4_0.gguf
+
+LICENSE """mit"""`;
+        expect(await instance.modelfile("Q4_0")).toBe(expectedOutput);
+    })
 });

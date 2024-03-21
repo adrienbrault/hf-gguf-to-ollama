@@ -269,6 +269,7 @@ export class HfGgufToOllama {
     return modelfile({
       from: `/tmp/${ggufFile.filename}`,
       chatTemplate,
+      license: repositoryInfo.readme.match(/license: (.+)/i)?.[1],
     });
   }
 
