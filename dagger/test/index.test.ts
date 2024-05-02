@@ -45,6 +45,7 @@ describe("HfGgufToOllama", () => {
                             entries: () => Promise.resolve([
                                 "model.Q4_0.gguf",
                                 "model.Q4_K_M.gguf",
+                                "model.F16.gguf",
                                 "README.md"
                             ]),
                             file: (filename: string) => {
@@ -67,7 +68,8 @@ describe("HfGgufToOllama", () => {
         expect(result).toEqual({
             ggufFiles: [
                 { quant: "Q4_0", filename: "model.Q4_0.gguf" },
-                { quant: "Q4_K_M", filename: "model.Q4_K_M.gguf" }
+                { quant: "Q4_K_M", filename: "model.Q4_K_M.gguf" },
+                { quant: "F16", filename: "model.F16.gguf" }
             ],
             url: "https://huggingface.co/adrienbrault/top-model",
             repository: "adrienbrault/top-model",

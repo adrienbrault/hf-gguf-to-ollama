@@ -127,7 +127,7 @@ export class HfGgufToOllama {
     const ggufFiles: GgufFile[] = [];
 
     for (const file of files) {
-      const match = file.match(/[.-](?<quant>i?q[A-Z0-9_]+)(\..+)?\.gguf$/i);
+      const match = file.match(/[.-](?<quant>i?q[A-Z0-9_]+|f[0-9]{2})(\..+)?\.gguf$/i);
       if (match) {
         ggufFiles.push(new GgufFile(match.groups['quant'], file));
       }
