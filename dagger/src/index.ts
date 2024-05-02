@@ -299,7 +299,12 @@ class GgufFile {
   filename: string;
 
   constructor(quant: string, filename: string) {
-    this.quant = quant.toUpperCase();
+    this.quant = quant
+        .toUpperCase()
+        .replace(
+            /(q|f)([0-9]+)/i,
+            (match, p1, p2) => `${p1.toLowerCase()}${p2}`
+        );
     this.filename = filename;
   }
 }
@@ -326,7 +331,7 @@ class RepositoryInfo {
   }
 
   find(quant: string): GgufFile {
-    const ggufFile = this.ggufFiles.find((ggufFile) => ggufFile.quant === quant.toUpperCase());
+    const ggufFile = this.ggufFiles.find((ggufFile) => ggufFile.quant.toLowerCase() === quant.toLowerCase());
     
     if (!ggufFile) {
       throw new Error([

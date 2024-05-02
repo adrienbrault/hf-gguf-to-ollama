@@ -7,17 +7,17 @@ describe("HfGgufToOllama", () => {
 
         instance.repositoryInfo = mock(() => Promise.resolve({
             ggufFiles: [
-                { quant: "Q4_0", filename: "model.Q4_0.gguf" },
-                { quant: "Q4_K_M", filename: "model.Q4_K_M.gguf" }
+                { quant: "q4_0", filename: "model.Q4_0.gguf" },
+                { quant: "q4_K_M", filename: "model.Q4_K_M.gguf" }
             ]
         }));
 
         const expectedTableString = `┌────────┬───────────────────┐
 │ Quant  │ Filename          │
 ├────────┼───────────────────┤
-│ Q4_0   │ model.Q4_0.gguf   │
+│ q4_0   │ model.Q4_0.gguf   │
 ├────────┼───────────────────┤
-│ Q4_K_M │ model.Q4_K_M.gguf │
+│ q4_K_M │ model.Q4_K_M.gguf │
 └────────┴───────────────────┘
 `.trim();
         let result = (await instance.list())
@@ -67,9 +67,9 @@ describe("HfGgufToOllama", () => {
 
         expect(result).toEqual({
             ggufFiles: [
-                { quant: "Q4_0", filename: "model.Q4_0.gguf" },
-                { quant: "Q4_K_M", filename: "model.Q4_K_M.gguf" },
-                { quant: "F16", filename: "model.F16.gguf" }
+                { quant: "q4_0", filename: "model.Q4_0.gguf" },
+                { quant: "q4_K_M", filename: "model.Q4_K_M.gguf" },
+                { quant: "f16", filename: "model.F16.gguf" }
             ],
             url: "https://huggingface.co/adrienbrault/top-model",
             repository: "adrienbrault/top-model",
@@ -82,8 +82,8 @@ describe("HfGgufToOllama", () => {
 
         instance.repositoryInfo = mock(() => Promise.resolve({
             ggufFiles: [
-                { quant: "Q4_0", filename: "model.Q4_0.gguf" },
-                { quant: "Q4_K_M", filename: "model.Q4_K_M.gguf" }
+                { quant: "q4_0", filename: "model.Q4_0.gguf" },
+                { quant: "q4_K_M", filename: "model.Q4_K_M.gguf" }
             ],
             readme: `
 ---
@@ -91,8 +91,8 @@ license: mit
 ---
 README content`,
             find: (quant: string) => {
-                if (quant === "Q4_0") {
-                    return { quant: "Q4_0", filename: "model.Q4_0.gguf" };
+                if (quant.toLowerCase() === "q4_0") {
+                    return { quant: "q4_0", filename: "model.Q4_0.gguf" };
                 }
                 throw new Error("Not found");
             }
@@ -102,5 +102,6 @@ README content`,
 
 LICENSE """mit"""`;
         expect(await instance.modelfile("Q4_0")).toBe(expectedOutput);
+        expect(await instance.modelfile("q4_0")).toBe(expectedOutput);
     })
 });
