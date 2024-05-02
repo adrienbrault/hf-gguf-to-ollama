@@ -133,7 +133,8 @@ If you want to use an ephemeral ollama daemon instead, replace `--ollama-host tc
 To run tests:
 ```console
 $ dagger develop
-$ dagger call test
+$ cd dagger
+$ bun test
 
 bun test v1.0.33 (9e91e137)
 
