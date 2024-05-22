@@ -27,6 +27,14 @@ export function modelfile(config: ModelfileConfig): string {
       chatTemplate = `[INST] {{ .System }} {{ .Prompt }} [/INST]`;
       parameters["stop"] = ["[INST]", "[/INST]"];
     }
+    if (chatTemplate === "phi") {
+      chatTemplate = `{{ if .System }}<|system|>
+{{ .System }}<|end|>
+{{ end }}{{ if .Prompt }}<|user|>
+{{ .Prompt }}<|end|>
+{{ end }}<|assistant|>
+{{ .Response }}<|end|>`;
+    }
 
     parts.push(`TEMPLATE """${chatTemplate}"""`);
   }

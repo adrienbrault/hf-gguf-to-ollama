@@ -68,4 +68,21 @@ PARAMETER stop [/INST]`;
     expect(modelfile(config)).toBe(expectedOutput);
   })
 
+
+  test("phi template", () => {
+    const config = {
+      from: "base/image",
+      chatTemplate: "phi",
+    };
+    const expectedOutput = `FROM base/image
+
+TEMPLATE """{{ if .System }}<|system|>
+{{ .System }}<|end|>
+{{ end }}{{ if .Prompt }}<|user|>
+{{ .Prompt }}<|end|>
+{{ end }}<|assistant|>
+{{ .Response }}<|end|>"""`;
+    expect(modelfile(config)).toBe(expectedOutput);
+  });
+
 });

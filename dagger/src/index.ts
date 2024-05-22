@@ -264,6 +264,8 @@ export class HfGgufToOllama {
       chatTemplate = "chatml";
     } else if (repositoryInfo.readme.includes("[/INST]")) {
       chatTemplate = "mistral";
+    } else if (repositoryInfo.readme.includes("<|user|>") && repositoryInfo.readme.includes("<|assistant|>")) {
+      chatTemplate = "phi";
     }
 
     return modelfile({
